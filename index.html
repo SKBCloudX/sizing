@@ -84,9 +84,11 @@ h1 {
 }
 .panel + .panel { margin-top: 20px; }
 
+/* 구역 제목은 강조색 대문자로 둔다. 입력 라벨(본문색)과 색으로 갈리고,
+   산정 근거 표의 그룹 제목과도 같은 규칙이 된다. */
 h2, details.panel > summary {
-  font-size: 0.72rem; font-weight: 600; text-transform: uppercase;
-  letter-spacing: 0.09em; color: var(--ink-soft);
+  font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.09em; color: var(--accent);
   margin: 0 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--line-soft);
 }
 /* 접히는 패널. 닫혀 있을 때는 제목줄만 남는다. */
@@ -96,6 +98,7 @@ details.panel > summary::before {
   content: "▸"; display: inline-block; width: 1.3em;
   font-weight: 400; letter-spacing: 0;
 }
+details.panel:hover > summary { color: var(--ink); }
 details.panel[open] > summary::before { content: "▾"; }
 details.panel:not([open]) > summary {
   margin-bottom: 0; padding-bottom: 0; border-bottom: none;
@@ -214,8 +217,8 @@ input[type=number]:focus-visible { outline: 2px solid var(--accent); outline-off
 <header>
   <h1>CloudX 노드 사이징 도구</h1>
   <p class="lede">
-    <span class="wide">왼쪽</span><span class="narrow">위쪽</span> 패널에 <b>규모</b> · <b>VM 사양</b> · <b>스토리지</b> 값을 넣으면
-    <span class="wide">오른쪽</span><span class="narrow">아래</span>에 control · compute · 스토리지의 필요 사양이 바로 나온다.
+    <span class="wide">좌측</span><span class="narrow">상단</span> 패널에 <b>규모</b> · <b>VM 사양</b> · <b>스토리지</b> 값을 넣으면
+    <span class="wide">우측</span><span class="narrow">하단</span>에 control · compute · 스토리지의 필요 사양이 바로 나온다.
   </p>
   <p class="lede">
     <b>스토리지 (고급)</b> 과 맨 아래 <b>산정 근거</b> 는 접혀 있다.
