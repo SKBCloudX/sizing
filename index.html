@@ -1,0 +1,543 @@
+<title>CloudX 노드 사이징 도구</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root {
+  --ink:      #12161c;
+  --ink-soft: #5b6472;
+  --surface:  #f4f6f9;
+  --panel:    #ffffff;
+  --line:     #dbe1ea;
+  --line-soft:#eef1f6;
+  --accent:   #1f6feb;
+  --accent-bg:#e8f0fe;
+  --warn:     #9a6212;
+  --warn-bg:  #fdf4e3;
+  --ok:       #1a7f4b;
+  --radius:   6px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ink:      #e6edf3;
+    --ink-soft: #9aa5b1;
+    --surface:  #0d1117;
+    --panel:    #161b22;
+    --line:     #2b333d;
+    --line-soft:#21262d;
+    --accent:   #58a6ff;
+    --accent-bg:#132b4d;
+    --warn:     #e3b341;
+    --warn-bg:  #35290d;
+    --ok:       #56d364;
+  }
+}
+:root[data-theme="dark"] {
+  --ink:      #e6edf3;
+  --ink-soft: #9aa5b1;
+  --surface:  #0d1117;
+  --panel:    #161b22;
+  --line:     #2b333d;
+  --line-soft:#21262d;
+  --accent:   #58a6ff;
+  --accent-bg:#132b4d;
+  --warn:     #e3b341;
+  --warn-bg:  #35290d;
+  --ok:       #56d364;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--surface);
+  color: var(--ink);
+  font-family: "IBM Plex Sans KR", system-ui, -apple-system, sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+}
+.wrap { max-width: 1180px; margin: 0 auto; padding: 32px 20px 64px; }
+
+header { border-bottom: 1px solid var(--line); padding-bottom: 14px; margin-bottom: 26px; }
+h1 {
+  font-size: 1.45rem; font-weight: 600; margin: 0;
+  letter-spacing: -0.01em; text-wrap: balance;
+}
+.lede {
+  /* 한 줄 문장이다. ch 는 한글 폭과 안 맞으므로 폭 제한을 두지 않고
+     화면이 좁을 때만 자연스럽게 접히게 둔다. */
+  margin: 7px 0 0;
+  font-size: 0.84rem; color: var(--ink-soft); line-height: 1.6;
+}
+.lede + .lede { margin-top: 2px; }
+.lede b { color: var(--ink); font-weight: 600; }
+/* 860px 아래에서는 입력·결과가 세로로 쌓여 좌우 표현이 맞지 않는다. */
+.narrow { display: none; }
+@media (max-width: 860px) {
+  .wide { display: none; }
+  .narrow { display: inline; }
+}
+
+.grid { display: grid; grid-template-columns: 340px 1fr; gap: 28px; align-items: start; }
+@media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 20px;
+}
+.panel + .panel { margin-top: 20px; }
+
+h2, details.panel > summary {
+  font-size: 0.72rem; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.09em; color: var(--ink-soft);
+  margin: 0 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--line-soft);
+}
+/* 접히는 패널. 닫혀 있을 때는 제목줄만 남는다. */
+details.panel > summary { display: block; cursor: pointer; list-style: none; }
+details.panel > summary::-webkit-details-marker { display: none; }
+details.panel > summary::before {
+  content: "▸"; display: inline-block; width: 1.3em;
+  font-weight: 400; letter-spacing: 0;
+}
+details.panel[open] > summary::before { content: "▾"; }
+details.panel:not([open]) > summary {
+  margin-bottom: 0; padding-bottom: 0; border-bottom: none;
+}
+details.panel > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 15px; }
+.field label { font-size: 0.82rem; font-weight: 500; }
+.hint { font-size: 0.74rem; color: var(--ink-soft); line-height: 1.45; }
+.hint code { font-family: "IBM Plex Mono", monospace; font-size: 0.95em; color: var(--ink); }
+.panel > .hint { margin: -9px 0 14px; }
+.types { margin: 2px 0 0; padding-left: 0; list-style: none; }
+.types li { position: relative; padding-left: 11px; margin-top: 4px; }
+.types li::before {
+  content: ""; position: absolute; left: 0; top: 0.52em;
+  width: 4px; height: 4px; border-radius: 50%; background: var(--ink-soft);
+}
+.types b { color: var(--ink); font-weight: 600; margin-right: 3px; }
+input[type=number] {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.95rem; padding: 7px 10px;
+  border: 1px solid var(--line); border-radius: 4px;
+  background: var(--surface); color: var(--ink); width: 100%;
+}
+input[type=number]:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.seg { display: flex; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+.seg label {
+  flex: 1; text-align: center; padding: 7px 4px; font-size: 0.8rem;
+  cursor: pointer; background: var(--surface); transition: background .12s;
+}
+.seg label:has(input:checked) { background: var(--accent); color: #fff; font-weight: 500; }
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.seg label + label { border-left: 1px solid var(--line); }
+
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+/* 결과 */
+.role { border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); overflow: hidden; }
+.role + .role { margin-top: 16px; }
+.role-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: 12px; padding: 13px 18px; border-bottom: 1px solid var(--line-soft);
+  background: var(--line-soft);
+}
+.role-name { font-weight: 600; font-size: 0.95rem; }
+.role-count { font-family: "IBM Plex Mono", monospace; font-size: 0.82rem; color: var(--ink-soft); }
+.role-body { display: grid; grid-template-columns: repeat(3, 1fr); }
+.role-body.one { grid-template-columns: 1fr; }
+@media (max-width: 560px) { .role-body { grid-template-columns: 1fr; } }
+.cell { padding: 15px 18px; }
+.cell + .cell { border-left: 1px solid var(--line-soft); }
+@media (max-width: 560px) {
+  .cell + .cell { border-left: none; border-top: 1px solid var(--line-soft); }
+}
+.cell .k { font-size: 0.72rem; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.06em; }
+.cell .v {
+  font-family: "IBM Plex Mono", monospace; font-size: 1.5rem; font-weight: 500;
+  font-variant-numeric: tabular-nums; line-height: 1.25; margin-top: 3px;
+}
+.cell .v small { font-size: 0.8rem; font-weight: 400; color: var(--ink-soft); }
+.cell .d { font-size: 0.74rem; color: var(--ink-soft); margin-top: 3px; }
+
+.tot {
+  display: flex; flex-wrap: wrap; gap: 26px;
+  padding: 15px 18px; border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--accent-bg); margin-bottom: 16px;
+}
+.tot div { min-width: 96px; }
+.tot .k { font-size: 0.72rem; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.06em; }
+.tot .v { font-family: "IBM Plex Mono", monospace; font-size: 1.3rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.note {
+  border-left: 3px solid var(--warn); background: var(--warn-bg);
+  padding: 10px 14px; border-radius: 0 4px 4px 0; margin-top: 10px;
+  font-size: 0.83rem; color: var(--ink);
+}
+.note b { color: var(--warn); }
+
+/* 산정 근거 */
+.detail {
+  margin-top: 16px; background: var(--panel);
+  border: 1px solid var(--line); border-radius: var(--radius);
+}
+.detail > summary {
+  display: block; cursor: pointer; padding: 13px 18px;
+  font-size: 0.88rem; font-weight: 600; list-style: none;
+}
+.detail > summary::-webkit-details-marker { display: none; }
+.detail > summary::before {
+  content: "▸"; display: inline-block; width: 1.2em;
+  color: var(--ink-soft); font-weight: 400;
+}
+.detail[open] > summary::before { content: "▾"; }
+.detail[open] > summary { border-bottom: 1px solid var(--line-soft); }
+.detail > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.detail-body { padding: 4px 18px 16px; overflow-x: auto; }
+#calc { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+#calc th {
+  text-align: left; padding: 16px 0 6px; font-weight: 600;
+  font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.07em;
+  color: var(--accent); border-bottom: 1px solid var(--line);
+}
+#calc td { padding: 7px 16px 7px 0; vertical-align: baseline; border-bottom: 1px solid var(--line-soft); }
+#calc td:nth-child(2) {
+  font-family: "IBM Plex Mono", monospace;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+#calc td:last-child { color: var(--ink-soft); padding-right: 0; white-space: normal; }
+#calc tr.sum td { font-weight: 600; }
+#calc tr.sum td:last-child { font-weight: 400; }
+
+</style>
+
+<div class="wrap">
+<header>
+  <h1>CloudX 노드 사이징 도구</h1>
+  <p class="lede">
+    <span class="wide">왼쪽</span><span class="narrow">위쪽</span> 패널에 <b>규모</b> · <b>VM 사양</b> · <b>스토리지</b> 값을 넣으면
+    <span class="wide">오른쪽</span><span class="narrow">아래</span>에 control · compute · 스토리지의 필요 사양이 바로 나온다.
+  </p>
+  <p class="lede">
+    <b>스토리지 (고급)</b> 과 맨 아래 <b>산정 근거</b> 는 접혀 있다.
+    누르면 세부 설정 및 산정 근거를 자세히 확인할 수 있다.
+  </p>
+</header>
+
+<div class="grid">
+  <!-- 입력 -->
+  <div>
+    <div class="panel">
+      <h2>규모</h2>
+      <div class="two">
+        <div class="field">
+          <label for="nodes">컴퓨트 노드 수</label>
+          <input type="number" id="nodes" value="20" min="1" max="500" step="1">
+        </div>
+        <div class="field">
+          <label for="perNode">노드당 VM</label>
+          <input type="number" id="perNode" value="50" min="1" max="1000" step="1">
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>VM 사양</h2>
+      <div class="two">
+        <div class="field">
+          <label for="vcpu">vCPU</label>
+          <input type="number" id="vcpu" value="4" min="1" max="256" step="1">
+        </div>
+        <div class="field">
+          <label for="ram">메모리 (GB)</label>
+          <input type="number" id="ram" value="8" min="1" max="2048" step="1">
+        </div>
+      </div>
+      <div class="field">
+        <label for="cpuRatio">CPU 가상화율</label>
+        <input type="number" id="cpuRatio" value="3" min="0.1" max="64" step="0.1">
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>스토리지</h2>
+      <div class="two">
+        <div class="field">
+          <label for="disk">OS디스크 (GB)</label>
+          <input type="number" id="disk" value="100" min="1" max="65536" step="1">
+        </div>
+        <div class="field">
+          <label for="snap">OS디스크 스냅샷 보관</label>
+          <input type="number" id="snap" value="5" min="0" max="64" step="1">
+        </div>
+      </div>
+      <div class="two">
+        <div class="field">
+          <label for="ddisk">개인디스크 (GB)</label>
+          <input type="number" id="ddisk" value="50" min="0" max="65536" step="1">
+        </div>
+        <div class="field">
+          <label for="dsnap">개인디스크 스냅샷 보관</label>
+          <input type="number" id="dsnap" value="5" min="0" max="64" step="1">
+        </div>
+      </div>
+    </div>
+
+    <details class="panel">
+      <summary>스토리지 (고급)</summary>
+      <div class="two">
+        <div class="field">
+          <label for="snapRate">스냅샷 증분율 (%)</label>
+          <input type="number" id="snapRate" value="30" min="1" max="100" step="1">
+          <div class="hint">스냅샷은 증분만 보관하므로 원본 전량을 차지하지 않는다.
+            100 을 넣으면 스냅샷마다 원본을 통째로 복사한다고 보면 된다.</div>
+        </div>
+        <div class="field">
+          <label for="shared">공유 OS 영역 (GB)</label>
+          <input type="number" id="shared" value="25" min="0" max="65536" step="1">
+          <div class="hint">골든 이미지에서 OS 가 설치된 영역의 크기다.
+            클론한 VM 들이 이 영역을 공유하므로 VM 고유 용량에서 빠진다.</div>
+        </div>
+      </div>
+      <div class="two">
+        <div class="field">
+          <label for="dedup">중복제거 절감률 (%)</label>
+          <input type="number" id="dedup" value="0" min="0" max="95" step="1">
+        </div>
+        <div class="field">
+          <label for="compress">압축 절감률 (%)</label>
+          <input type="number" id="compress" value="0" min="0" max="95" step="1">
+        </div>
+      </div>
+      <div class="hint">스토리지 벤더에서 광고하는 절감률. (0 이면 미적용이다.)
+        벤더가 <code>4:1</code> 처럼 비율로 표기했다면 <code>1 − 1/비율</code> 로 환산한다. 4:1 은 75% 다.
+        공유 OS 영역은 클론 단계에서 이미 중복이 제거된 상태라 여기서 더 줄어들 여지가 적다.
+        벤더 수치를 그대로 넣으면 같은 절감을 두 번 세는 셈이 되니 주의가 필요하다.</div>
+    </details>
+
+    <div class="panel">
+      <h2>운영 조건</h2>
+      <div class="field">
+        <label>PC 유형</label>
+        <div class="seg" id="churn">
+          <label><input type="radio" name="churn" value="low" checked>전용PC</label>
+          <label><input type="radio" name="churn" value="high">공용PC</label>
+        </div>
+        <ul class="hint types">
+          <li><b>전용PC</b> 사용자마다 VM 이 고정되어 한 번 만들면 계속 쓰는 형태</li>
+          <li><b>공용PC</b> 반납할 때마다 초기화되어 생성과 삭제가 끊이지 않는 형태</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- 결과 -->
+  <div>
+    <div class="tot">
+      <div><div class="k">총 VM</div><div class="v" id="oTotal">–</div></div>
+      <div><div class="k">control</div><div class="v" id="oCtl">2</div></div>
+      <div><div class="k">compute</div><div class="v" id="oCmp">–</div></div>
+    </div>
+
+    <div class="role">
+      <div class="role-head"><span class="role-name">control 노드</span><span class="role-count" id="hCtl"></span></div>
+      <div class="role-body">
+        <div class="cell"><div class="k">논리 CPU</div><div class="v" id="ctlCpu">–</div><div class="d" id="ctlCore"></div></div>
+        <div class="cell"><div class="k">메모리</div><div class="v" id="ctlMem">–</div></div>
+        <div class="cell"><div class="k">OS 디스크</div><div class="v" id="ctlDisk">–</div><div class="d">RAID 1</div></div>
+      </div>
+    </div>
+
+    <div class="role">
+      <div class="role-head"><span class="role-name">compute 노드</span><span class="role-count" id="hCmp"></span></div>
+      <div class="role-body">
+        <div class="cell"><div class="k">논리 CPU</div><div class="v" id="cmpCpu">–</div><div class="d" id="cmpCore"></div></div>
+        <div class="cell"><div class="k">메모리</div><div class="v" id="cmpMem">–</div></div>
+        <div class="cell"><div class="k">OS 디스크</div><div class="v" id="cmpDisk">–</div><div class="d">RAID 1</div></div>
+      </div>
+    </div>
+
+    <div class="role">
+      <div class="role-head"><span class="role-name">스토리지</span></div>
+      <div class="role-body one">
+        <div class="cell"><div class="k">볼륨 용량</div><div class="v" id="stgCap">–</div></div>
+      </div>
+    </div>
+
+    <div id="warns"></div>
+
+    <details class="detail">
+      <summary>산정 근거</summary>
+      <div class="detail-body"><table id="calc"></table></div>
+    </details>
+
+  </div>
+</div>
+
+<script>
+// ---- 계수 -----------------------------------------------------------------
+// control 은 PC 유형별 고정 사양이다. 실측 소요가 VM 대수에 거의 영향을 받지
+// 않아(VM 당 1.1MB) 규모로 계산할 실익이 없다. 근거는 아래 표 참조.
+const CTL_SPEC = {
+  low:  { cpu: 16, mem: 64  },           // 전용PC
+  high: { cpu: 32, mem: 128 },           // 공용PC
+};
+// compute 고정 오버헤드. 실측(2.8 CPU / 3.6GB)에 커널 slab 약 2GB 와
+// NFS 페이지 캐시 여유를 더한 값이다. CPU 4 는 reserved_host_cpus 와 같다.
+const CMP_FIX_CPU = 4;
+const CMP_FIX_MEM = 8;                   // GB
+const RAM_RATIO  = 0.9;                  // ram_allocation_ratio 고정
+const QEMU_OVERHEAD = 0.1;               // qemu 프로세스가 게스트 RAM 외에 더 쓰는 비율
+const HT = 2;                            // 물리 코어 * 하이퍼스레딩 = 논리 CPU
+// 운영하다 보면 골든 이미지가 여러 벌 쌓인다. 그 실물이 차지하는 공간으로
+// 전체에서 한 번만 잡는다. VM 하나가 공유하는 것은 자기가 클론된 한 벌뿐이라
+// VM 고유 용량을 깎는 값(공유 OS 영역)과는 별개다.
+const GOLDEN_POOL = 500;                 // GB
+
+const $ = id => document.getElementById(id);
+const IDS = ['nodes','perNode','vcpu','ram','disk','cpuRatio','snap','ddisk','dsnap','snapRate','shared','dedup','compress'];
+
+
+// 정수는 그대로, 소수는 한 자리까지만 보인다.
+const f = v => Number.isInteger(v)
+  ? v.toLocaleString()
+  : Number(v.toFixed(1)).toLocaleString(undefined, { minimumFractionDigits: 1 });
+
+function num(id, fallback) {
+  const v = parseFloat($(id).value);
+  return Number.isFinite(v) && v > 0 ? v : fallback;
+}
+
+// 0 을 유효한 값으로 받는다. 스냅샷 미보관, 개인디스크 없음이 정상 입력이다.
+function num0(id) {
+  const v = parseFloat($(id).value);
+  return Number.isFinite(v) && v >= 0 ? v : 0;
+}
+
+function calc() {
+  const nodes    = Math.round(num('nodes', 1));
+  const perNode  = Math.round(num('perNode', 1));
+  const vcpu     = num('vcpu', 1);
+  const ram      = num('ram', 1);
+  const disk     = num('disk', 1);
+  const cpuRatio = num('cpuRatio', 3);
+  const snap     = Math.round(num0('snap'));
+  const ddisk    = num0('ddisk');
+  const dsnap    = Math.round(num0('dsnap'));
+  const snapRate = num('snapRate', 30) / 100;
+  const shared   = num0('shared');
+  const dedup    = num0('dedup');       // %
+  const compress = num0('compress');    // %
+  const churn    = document.querySelector('input[name=churn]:checked').value;
+
+  const totalVM = nodes * perNode;
+
+  // BFV 라 VM 디스크가 곧 볼륨이다.
+  // 골든 이미지에서 클론하면 OS 가 설치된 영역은 VM 마다 복제되지 않는다.
+  // 그 부분을 뺀 나머지만 VM 고유 용량으로 세고, 공유분은 전체에서 한 번 더한다.
+  // 스냅샷은 변경 블록만 보관하므로 원본의 일부(증분율)만 차지한다.
+  const osUnique  = Math.max(0, disk - shared);
+  const snapMul   = 1 + snap  * snapRate;
+  const dsnapMul  = 1 + dsnap * snapRate;
+  const perVMDisk = osUnique * snapMul + ddisk * dsnapMul;
+  // 중복제거와 압축은 남는 비율끼리 곱해서 겹친다. 둘 다 0 이면 절감 없음.
+  const rawCap    = GOLDEN_POOL + totalVM * perVMDisk;
+  const efficy    = (1 - dedup / 100) * (1 - compress / 100);
+
+  // compute: 배치 가능량 = (total - reserved) * ratio  ->  total = 소요/ratio + reserved
+  const cmpCpuRaw = CMP_FIX_CPU + (perNode * vcpu) / cpuRatio;
+  const cmpMemRaw = CMP_FIX_MEM + (perNode * ram * (1 + QEMU_OVERHEAD)) / RAM_RATIO;
+
+  const out = {
+    ctlCpu: CTL_SPEC[churn].cpu,
+    ctlMem: CTL_SPEC[churn].mem,
+    cmpCpu: Math.ceil(cmpCpuRaw),
+    cmpMem: Math.ceil(cmpMemRaw),
+    stgCap: rawCap * efficy,
+  };
+
+  // --- 상단 요약
+  $('oTotal').textContent = totalVM.toLocaleString();
+  $('oCmp').textContent   = nodes;
+
+  // --- control
+  $('hCtl').textContent = '2 대 (HA)';
+  $('ctlCpu').innerHTML = `${out.ctlCpu}<small> 논리</small>`;
+  $('ctlCore').textContent = `물리 코어 = ${Math.ceil(out.ctlCpu / HT)} (HT 적용)`;
+  $('ctlMem').innerHTML = `${out.ctlMem}<small> GB</small>`;
+  $('ctlDisk').innerHTML = `500<small> GB</small>`;
+
+  // --- compute
+  $('hCmp').textContent = `${nodes} 대`;
+  $('cmpCpu').innerHTML = `${out.cmpCpu}<small> 논리</small>`;
+  $('cmpCore').textContent = `물리 코어 = ${Math.ceil(out.cmpCpu / HT)} (HT 적용)`;
+  $('cmpMem').innerHTML = `${out.cmpMem}<small> GB</small>`;
+  $('cmpDisk').innerHTML = `500<small> GB</small>`;
+
+  // --- 스토리지
+  $('stgCap').innerHTML = `${(out.stgCap / 1024).toFixed(1)}<small> TB</small>`;
+
+  // --- 경고
+  const w = [];
+  if (out.cmpMem > 1024) {
+    w.push(`<b>메모리가 2소켓 장비 한계를 넘는다.</b> 노드당 ${out.cmpMem}GB 는 일반적인 2소켓 서버로 구성하기 어렵다.
+            노드당 VM 을 줄이고 노드 수를 늘리는 편이 현실적이다.`);
+  }
+  if (disk <= shared) {
+    w.push(`<b>OS디스크가 공유 OS 영역(${f(shared)}GB)보다 작거나 같다.</b>
+            VM 고유 용량이 0 으로 잡혀 개인디스크분만 남는다.`);
+  }
+  $('warns').innerHTML = w.map(t => `<div class="note">${t}</div>`).join('');
+
+  // --- 산정 근거
+  const osSnap  = osUnique * snapMul;
+  const dSnap   = ddisk * dsnapMul;
+  const pct     = `${f(snapRate * 100)}%`;
+  const groups = [
+    ['control', [
+      ['PC 유형 고정', `${out.ctlCpu} 논리 / ${out.ctlMem} GB`,
+       'VM 대수에 따라 변하지 않아 규모로 계산하지 않는다'],
+    ]],
+    ['compute · 논리 CPU', [
+      ['고정 오버헤드', `${CMP_FIX_CPU}`, 'reserved_host_cpus 와 같은 값'],
+      ['VM 몫', `${perNode} × ${f(vcpu)} / ${f(cpuRatio)} = ${f(perNode * vcpu / cpuRatio)}`,
+       'CPU 가상화율로 나눈다'],
+      ['합계', `${f(cmpCpuRaw)} → ${out.cmpCpu} 논리`, '정수로 올림', true],
+      ['물리 코어', `${out.cmpCpu} / ${HT} = ${Math.ceil(out.cmpCpu / HT)}`, '하이퍼스레딩 적용'],
+    ]],
+    ['compute · 메모리', [
+      ['고정 오버헤드', `${CMP_FIX_MEM} GB`, 'OS · 커널 slab · 컨테이너'],
+      ['VM 몫', `${perNode} × ${f(ram)} × ${1 + QEMU_OVERHEAD} / ${RAM_RATIO} = ${f(perNode * ram * (1 + QEMU_OVERHEAD) / RAM_RATIO)} GB`,
+       `qemu 오버헤드 ${QEMU_OVERHEAD * 100}%, ram_allocation_ratio ${RAM_RATIO}`],
+      ['합계', `${f(cmpMemRaw)} → ${out.cmpMem} GB`, '정수로 올림', true],
+    ]],
+    ['스토리지 · 볼륨 용량', [
+      ['골든 이미지', `${GOLDEN_POOL} GB`,
+       '운영하며 쌓이는 이미지 여러 벌. 대수와 무관하게 전체에서 한 번만 잡는다'],
+      ['공유 OS 영역', `${f(shared)} GB`,
+       'VM 이 자기가 클론된 이미지와 나눠 쓰는 부분'],
+      ['VM 고유 OS', `${f(disk)} − ${f(shared)} = ${f(osUnique)} GB`, '공유분을 뺀 나머지'],
+      ['OS + 스냅샷', `${f(osUnique)} × (1 + ${snap} × ${f(snapRate * 100)}%) = ${f(osSnap)} GB`,
+       `보관 ${snap} 개. 스냅샷 하나가 원본의 ${pct}`],
+      ['개인 + 스냅샷', `${f(ddisk)} × (1 + ${dsnap} × ${f(snapRate * 100)}%) = ${f(dSnap)} GB`,
+       `보관 ${dsnap} 개`],
+      ['VM 당', `${f(osSnap)} + ${f(dSnap)} = ${f(perVMDisk)} GB`, ''],
+      ['소계', `${GOLDEN_POOL} + ${totalVM.toLocaleString()} × ${f(perVMDisk)} = ${(rawCap / 1024).toFixed(1)} TB`,
+       '중복제거 · 압축 적용 전'],
+      ['중복제거 · 압축',
+       `× (1 − ${f(dedup)}%) × (1 − ${f(compress)}%) = × ${efficy.toFixed(3)}`,
+       efficy < 1 ? '남는 비율끼리 곱해서 겹친다' : '미적용'],
+      ['합계', `${(out.stgCap / 1024).toFixed(1)} TB`, `${f(Math.round(out.stgCap))} GB`, true],
+    ]],
+  ];
+  $('calc').innerHTML = groups.map(([title, rows]) =>
+    `<tr><th colspan="3">${title}</th></tr>` + rows.map(([k, v, note, sum]) =>
+      `<tr${sum ? ' class="sum"' : ''}><td>${k}</td><td>${v}</td><td>${note}</td></tr>`
+    ).join('')
+  ).join('');
+
+}
+
+IDS.forEach(id => $(id).addEventListener('input', calc));
+document.querySelectorAll('input[name=churn]').forEach(r => r.addEventListener('change', calc));
+calc();
+</script>
