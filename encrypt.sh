@@ -10,6 +10,7 @@ cd "$(dirname "$(readlink -f "$0")")"
 
 SRC="${1:-index.src.html}"
 OUT="index.html"
+TITLE="CloudX 사이징 도구"   # 비밀번호 화면의 제목(브라우저 탭 + 화면 상단)
 IMAGE="node:20-slim"
 
 command -v docker >/dev/null || { echo "docker 가 필요합니다." >&2; exit 1; }
@@ -28,7 +29,7 @@ rel="$(basename "$tmp")"
 docker run --rm --network host -v "$PWD:/work" -w /work \
   --user "$(id -u):$(id -g)" -e HOME=/tmp \
   -e STATICRYPT_PASSWORD="$PW" \
-  "$IMAGE" npx -y staticrypt@3 "$SRC" --short -c false --remember false -d "$rel" 2>&1 \
+  "$IMAGE" npx -y staticrypt@3 "$SRC" --short -c false --remember false --template-title "$TITLE" -d "$rel" 2>&1 \
   | grep -vE "npm warn|npm notice|password is less than" || true
 
 enc="$tmp/$(basename "$SRC")"
